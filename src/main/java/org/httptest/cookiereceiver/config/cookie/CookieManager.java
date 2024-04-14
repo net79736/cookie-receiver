@@ -1,8 +1,11 @@
-package org.httptest.networkclient.config.cookie;
+package org.httptest.cookiereceiver.config.cookie;
 
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 
 /**
@@ -53,11 +56,38 @@ import java.net.URLEncoder;
  * response.addHeader("Set-Cookie", USER_URL + "=" + (JW_URL) + "; HTTPOnly;" + " Secure; SameSite=None;" + " domain=" + DOMAIN + ";" + "path=" + "/");
  * response.addHeader("Set-Cookie", R_JWM + "=" + (JW_A) + "; HTTPOnly;" + " Secure; SameSite=None;" + " domain=" + DOMAIN + ";" + "path=" + "/");
  */
+@Slf4j
 public class CookieManager {
     private static boolean isCookieSameSite = false;
 
     public static void setIsCookieSameSite(boolean isCookieSameSite) {
         CookieManager.isCookieSameSite = isCookieSameSite;
+    }
+
+    public static String getCookieValue(String cookieName, HttpServletRequest request) {
+        try {
+            Cookie[] cookies = request.getCookies();
+            if (cookies != null) {
+                String cookieValue = null;
+
+                for (int i = 0; i < cookies.length; ++i) {
+                    Cookie cookieInfo = cookies[i];
+                    if (cookieInfo.getName().equals(cookieName)) {
+                        cookieValue = cookieInfo.getValue();
+                        if (cookieValue != null) {
+                            cookieValue = URLDecoder.decode(cookieValue);
+                        }
+                        return cookieValue;
+                    }
+                }
+
+            }
+
+            return null;
+        } catch (Exception e) {
+            log.error("[ERROR] CookieManager getCookieValue message: {}", e.getMessage());
+            return "";
+        }
     }
 
     public static void addCookie(String name, String value, String domain, String path, HttpServletRequest request, HttpServletResponse response) {
@@ -68,6 +98,34 @@ public class CookieManager {
         }
 
         response.addHeader("Set-Cookie", name + "=" + URLEncoder.encode(value) + "; HTTPOnly;" + strSameSiteOption + " domain=" + domain + ";" + "path=" + path);
+    }
+
+    /**
+     * 쿠키는 [이름, 도메인, 경로] 값으로 구분하기 때문에 같은 [이름, 도메인, 경로]를 가진 쿠키가 Set-Cookie로 새로 들어온다면 값은 덮어쓰여집니다.
+     * 이를 이용해 서버는 기존의 쿠키를 삭제할 수 있습니다.
+     *
+     * @param strCookieName 쿠키 이름
+     * @param strCookieValue 쿠키 값
+     * @param strDomain 도메인
+     * @param strPath URI 경로
+     * @param req HttpServletRequest
+     * @param res HttpServletResponse
+     * @return
+     */
+    public static boolean removeCookie(String strCookieName, String strCookieValue, String strDomain, String strPath, HttpServletRequest req, HttpServletResponse res) {
+        if (strCookieName != null) {
+            Cookie cookieInfo = new Cookie(strCookieName, URLEncoder.encode(strCookieValue));
+            if (strDomain != null && strDomain.length() != 0) {
+                cookieInfo.setDomain(strDomain);
+            }
+
+            cookieInfo.setPath(strPath);
+            cookieInfo.setMaxAge(0);
+            res.addCookie(cookieInfo);
+            return true;
+        } else {
+            return false;
+        }
     }
 
 

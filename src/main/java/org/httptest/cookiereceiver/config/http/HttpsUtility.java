@@ -1,4 +1,4 @@
-package org.httptest.networkclient.config.http;
+package org.httptest.cookiereceiver.config.http;
 
 import org.apache.hc.client5.http.classic.HttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
